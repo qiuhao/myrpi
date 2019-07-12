@@ -97,8 +97,8 @@ def status():
                 cpu=zkc.get(nodepath+'/'+dev+'/'+'cpu')
                 cpucore=zkc.get(nodepath+'/'+dev+'/'+'cpucore')
                 cpuarch=zkc.get(nodepath+'/'+dev+'/'+'cpuarch')
-                if cpu[0] is None:
-                    html+='<div class=\'table-td\'>'+cpuarch[0].decode()+', '+cpucore[0].decode()+'-core</div>'
+                if len(cpu[0].decode()) == 0:
+                    html+='<div class=\'table-td\'>'+cpuarch[0].decode()+'</div>'
                 else:
                     html+='<div class=\'table-td\'>'+cpu[0].decode()+' ('+cpucore[0].decode()+'-core, '+cpuarch[0].decode()+')</div>'
             except kazoo.exceptions.NoNodeError:
