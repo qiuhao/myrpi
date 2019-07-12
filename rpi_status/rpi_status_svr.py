@@ -46,6 +46,9 @@ def status():
     '<div class=\'table\'>'+\
         '<div class=\'table-tr\'>'+\
             '<div class=\'table-td\'>设备名</div>'+\
+            '<div class=\'table-td\'>型号</div>'+\
+            '<div class=\'table-td\'>CPU</div>'+\
+            '<div class=\'table-td\'>内存(MB)<br>Total/Avail/Free</div>'+\
             '<div class=\'table-td\'>局域网IP</div>'+\
             '<div class=\'table-td\'>外网IP</div>'+\
             '<div class=\'table-td\'>上一次更新</div>'+\
@@ -55,8 +58,18 @@ def status():
     devices=zkc.get_children(nodepath)
     print(str(devices))
     for dev in devices:
+        model=zkc.get(nodepath+'/'+dev+'/'+'model')[0].decode()
+        cpu=zkc.get(nodepath+'/'+dev+'/'+'cpu')[0].decode()
+        cpucore=zkc.get(nodepath+'/'+dev+'/'+'cpucore')[0].decode()
+        cpuarch=zkc.get(nodepath+'/'+dev+'/'+'cpuarch')[0].decode()
+        memtotal=int(int(zkc.get(nodepath+'/'+dev+'/'+'memtotal')[0].decode())/1024)
+        memavail=int(int(zkc.get(nodepath+'/'+dev+'/'+'memavailable')[0].decode())/1024)
+        memfree=int(int(zkc.get(nodepath+'/'+dev+'/'+'memfree')[0].decode())/1024)
         html+='<div class=\'table-tr\'>'
         html+='<div class=\'table-td\'>'+dev+'</div>'
+        html+='<div class=\'table-td\'>'+model+'</div>'
+        html+='<div class=\'table-td\'>'+cpu+' ('+cpucore+'-core, '+cpuarch+')</div>'
+        html+='<div class=\'table-td\'>'+str(memtotal)+'/'+str(memavail)+'/'+str(memfree)+'</div>'
         html+='<div class=\'table-td\'>'+zkc.get(nodepath+'/'+dev+'/'+'localip')[0].decode()+'</div>'
         html+='<div class=\'table-td\'>'+zkc.get(nodepath+'/'+dev+'/'+'externalip')[0].decode()+'</div>'
         html+='<div class=\'table-td\'>'
@@ -87,6 +100,13 @@ def status_report():
     zkc.ensure_path(folder+"/updatetime")
     zkc.ensure_path(folder+"/localip")
     zkc.ensure_path(folder+"/externalip")
+    zkc.ensure_path(folder+"/cpu")
+    zkc.ensure_path(folder+"/cpucore")
+    zkc.ensure_path(folder+"/cpuarch")
+    zkc.ensure_path(folder+"/memtotal")
+    zkc.ensure_path(folder+"/memavailable")
+    zkc.ensure_path(folder+"/memfree")
+    zkc.ensure_path(folder+"/model")
 
     timestamp=zkc.get(folder+"/updatetime")
     curtime=time.time()
@@ -96,17 +116,18 @@ def status_report():
 
     zkc.set(folder+"/updatetime", str(curtime).encode('utf-8'))
     zkc.set(folder+"/localip", _dict['ip'].encode('utf-8'))
+    zkc.set(folder+"/cpu", _dict['cpu'].encode('utf-8'))
+    zkc.set(folder+"/cpucore", _dict['core'].encode('utf-8'))
+    zkc.set(folder+"/cpuarch", _dict['arch'].encode('utf-8'))
+    zkc.set(folder+"/memtotal", _dict['mem'].encode('utf-8'))
+    zkc.set(folder+"/memfree", _dict['memf'].encode('utf-8'))
+    zkc.set(folder+"/memavailable", _dict['mema'].encode('utf-8'))
+    zkc.set(folder+"/model", _dict['model'].encode('utf-8'))
 
     if realip is None:
         zkc.set(folder+"/externalip", request.get('REMOTE_ADDR').encode('utf-8'))
     else:
         zkc.set(folder+"/externalip", realip.encode('utf-8'))
-
-    timestamp=zkc.get(folder+"/updatetime")
-    lip=zkc.get(folder+"/localip")
-    wip=zkc.get(folder+"/externalip")
-
-    print("record: %s: %s, %s" % (_dict['host'], lip[0], wip[0]))
 
     return HTTPResponse(None, 200, {})
 
