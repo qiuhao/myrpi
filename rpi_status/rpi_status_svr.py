@@ -138,9 +138,13 @@ def status():
                 html+=str(int((curtime-utime))%60)+'秒前'
             elif curtime < utime+3600:
                 html+=str(int((curtime-utime)/60))+'分钟'+str((curtime-utime)%60)+'秒前'
-            else:
+            elif curtime < utime+3600*24:
                 h=int((curtime-utime)/3600)
                 html+=str(h)+'小时'+str(int((curtime-utime)/60)-h*60)+'分钟'+str((curtime-utime)%60)+'秒前'
+            else:
+                h=int((curtime-utime)/3600)
+                d=int(h/24)
+                html+=str(d)+'天'+str(h-d*24)+'小时'+str(int((curtime-utime)/60)-h*60)+'分钟'+str((curtime-utime)%60)+'秒前'
             html+='</div></div>'
 
     html+='</div></body></html>'
