@@ -72,7 +72,9 @@ CPU_CORE=`cat /proc/cpuinfo | grep processor | wc -l`
 
 CPU_ARCH=`cat /proc/cpuinfo | grep "model name" | sort -n | tail -1 | cut -b 14-`
 
-curl -X POST --data "{\"host\":\"$HOST\",\"ip\":\"$ETH0_IP\",\"cpu\":\"$CPU\",\"core\":\"$CPU_CORE\",\"arch\":\"$CPU_ARCH\",\"model\":\"$MODEL\",\"mem\":\"$MEM\",\"mema\":\"$MEMA\",\"memf\":\"$MEMF\"}" <http://<serveraddr:port>>/rpi_status/
+CPU_TEMP=`vcgencmd measure_temp | cut -b 6-`
+
+curl -X POST --data "{\"host\":\"$HOST\",\"ip\":\"$ETH0_IP\",\"temperature\":\"$CPU_TEMP\",\"cpu\":\"$CPU\",\"core\":\"$CPU_CORE\",\"arch\":\"$CPU_ARCH\",\"model\":\"$MODEL\",\"mem\":\"$MEM\",\"mema\":\"$MEMA\",\"memf\":\"$MEMF\"}" <http://<serveraddr:port>>/rpi_status/
 
 启用crontab任务（都加在root下）：
 
