@@ -31,24 +31,47 @@ def status():
     '</style>'+\
     '<script type="text/javascript">'+\
         'var timer=null;'+\
+        'var refreshtimer=null;'+\
+        'function displayClock(num){'+\
+        '    if(num<10){'+\
+        '        return "0"+num;'+\
+        '    }'+\
+        '    else{'+\
+        '        return num;'+\
+        '    }'+\
+        '}'+\
         'function refresh(){'+\
         '    location.reload();'+\
-        '    timer=setTimeout("refresh()",5000);'+\
+        '    refreshtimer=setTimeout("refresh()",15000);'+\
         '}'+\
         'function stopClock(){'+\
         '    clearTimeout(timer);'+\
         '}'+\
         'function startClock(){'+\
-        '    timer=setTimeout("refresh()",5000);'+\
+        '    var time =new Date();'+\
+        '    var hours=displayClock(time.getHours())+":";'+\
+        '    var minutes=displayClock(time.getMinutes())+":";'+\
+        '    var seconds=displayClock(time.getSeconds());'+\
+        '    document.getElementById("show").innerHTML=hours+minutes+seconds;'+\
+        '    timer=setTimeout("startClock()",1000);'+\
+        '}'+\
+        'function onload(){'+\
+        '    startClock();'+\
+        '    refreshtimer=setTimeout("refresh()",15000);'+\
+        '}'+\
+        'function onunload(){'+\
+        '    stopClock();'+\
+        '    clearTimeout(refreshtimer);'+\
         '}'+\
     '</script>'+\
-    '</head><body onload="startClock()" onunload="stopClock()">'+\
+    '</head><body onload="onload()" onunload="onunload()">'+\
+    '<div id="show" style="font-size:24px;color:#4213C9;text-align:left"></div>'+\
     '<div class=\'table\'>'+\
         '<div class=\'table-tr\'>'+\
             '<div class=\'table-td\'>设备名</div>'+\
             '<div class=\'table-td\'>型号</div>'+\
             '<div class=\'table-td\'>CPU</div>'+\
-            '<div class=\'table-td\'>内存<br>Total/Free</div>'+\
+            '<div class=\'table-td\'>内存<br>总/可用</div>'+\
             '<div class=\'table-td\'>CPU温度</div>'+\
             '<div class=\'table-td\'>局域网IP</div>'+\
             '<div class=\'table-td\'>外网IP</div>'+\
@@ -59,63 +82,66 @@ def status():
     devices=zkc.get_children(nodepath)
     devices.sort()
     for dev in devices:
-        html+='<div class=\'table-tr\'>'
-        html+='<div class=\'table-td\'>'+dev+'</div>'
-
-        try:
-            model=zkc.get(nodepath+'/'+dev+'/'+'model')
-            html+='<div class=\'table-td\'>'+model[0].decode()+'</div>'
-        except kazoo.exceptions.NoNodeError:
-            html+='<div class=\'table-td\'>'+''+'</div>'
-
-        try:
-            cpu=zkc.get(nodepath+'/'+dev+'/'+'cpu')
-            cpucore=zkc.get(nodepath+'/'+dev+'/'+'cpucore')
-            cpuarch=zkc.get(nodepath+'/'+dev+'/'+'cpuarch')
-            if cpu is None:
-                html+='<div class=\'table-td\'>'+cpuarch[0].decode()+', '+cpucore[0].decode()+'-core</div>'
-            else:
-                html+='<div class=\'table-td\'>'+cpu[0].decode()+' ('+cpucore[0].decode()+'-core, '+cpuarch[0].decode()+')</div>'
-        except kazoo.exceptions.NoNodeError:
-            html+='<div class=\'table-td\'>'+''+'</div>'
-
-        try:
-            memtotal=zkc.get(nodepath+'/'+dev+'/'+'memtotal')
-            memfree=zkc.get(nodepath+'/'+dev+'/'+'memfree')
-            html+='<div class=\'table-td\'>'
-            imt=int(int(memtotal[0].decode())/1024)
-            imf=int(int(memfree[0].decode())/1024)
-            if imt > 2048:
-                html+=str(int(imt*10/1024)/10)+'GB/'
-            else:
-                html+=str(imt)+'MB/'
-            if imf > 2048:
-                html+=str(int(imf*10/1024)/10)+'GB'
-            else:
-                html+=str(imf)+'MB'
-            html+='</div>'
-        except kazoo.exceptions.NoNodeError:
-            html+='<div class=\'table-td\'>'+''+'</div>'
-
-        try:
-            temperature=zkc.get(nodepath+'/'+dev+'/'+'temperature')
-            html+='<div class=\'table-td\'>'+temperature[0].decode()+'</div>'
-        except kazoo.exceptions.NoNodeError:
-            html+='<div class=\'table-td\'>'+''+'</div>'
-
-        html+='<div class=\'table-td\'>'+zkc.get(nodepath+'/'+dev+'/'+'localip')[0].decode()+'</div>'
-        html+='<div class=\'table-td\'>'+zkc.get(nodepath+'/'+dev+'/'+'externalip')[0].decode()+'</div>'
-        html+='<div class=\'table-td\'>'
         utime=int(float(zkc.get(nodepath+'/'+dev+'/'+'updatetime')[0]))
-        if curtime <= utime or utime is None:
-            html+='无效'
-        elif curtime < utime+60:
-            html+=str(int((curtime-utime))%60)+'秒前'
-        elif curtime < utime+3600:
-            html+=str(int((curtime-utime)/60))+'分钟'+str((curtime-utime)%60)+'秒前'
-        else:
-            html+=str(int((curtime-utime)/3600))+'小时'+str(int((curtime-utime)/60))+'分钟'+str((curtime-utime)%60)+'秒前'
-        html+='</div></div>'
+        if curtime <= utime + 3600*24:
+            html+='<div class=\'table-tr\'>'
+            html+='<div class=\'table-td\'>'+dev+'</div>'
+
+            try:
+                model=zkc.get(nodepath+'/'+dev+'/'+'model')
+                html+='<div class=\'table-td\'>'+model[0].decode()+'</div>'
+            except kazoo.exceptions.NoNodeError:
+                html+='<div class=\'table-td\'>'+''+'</div>'
+
+            try:
+                cpu=zkc.get(nodepath+'/'+dev+'/'+'cpu')
+                cpucore=zkc.get(nodepath+'/'+dev+'/'+'cpucore')
+                cpuarch=zkc.get(nodepath+'/'+dev+'/'+'cpuarch')
+                if cpu[0] is None:
+                    html+='<div class=\'table-td\'>'+cpuarch[0].decode()+', '+cpucore[0].decode()+'-core</div>'
+                else:
+                    html+='<div class=\'table-td\'>'+cpu[0].decode()+' ('+cpucore[0].decode()+'-core, '+cpuarch[0].decode()+')</div>'
+            except kazoo.exceptions.NoNodeError:
+                html+='<div class=\'table-td\'>'+''+'</div>'
+
+            try:
+                memtotal=zkc.get(nodepath+'/'+dev+'/'+'memtotal')
+                memfree=zkc.get(nodepath+'/'+dev+'/'+'memfree')
+                html+='<div class=\'table-td\'>'
+                imt=int(int(memtotal[0].decode())/1024)
+                imf=int(int(memfree[0].decode())/1024)
+                if imt > 2048:
+                    html+=str(int(imt*10/1024)/10)+'GB/'
+                else:
+                    html+=str(imt)+'MB/'
+                if imf > 2048:
+                    html+=str(int(imf*10/1024)/10)+'GB'
+                else:
+                    html+=str(imf)+'MB'
+                html+='</div>'
+            except kazoo.exceptions.NoNodeError:
+                html+='<div class=\'table-td\'>'+''+'</div>'
+
+            try:
+                temperature=zkc.get(nodepath+'/'+dev+'/'+'temperature')
+                html+='<div class=\'table-td\'>'+temperature[0].decode()+'</div>'
+            except kazoo.exceptions.NoNodeError:
+                html+='<div class=\'table-td\'>'+''+'</div>'
+
+            html+='<div class=\'table-td\'>'+zkc.get(nodepath+'/'+dev+'/'+'localip')[0].decode()+'</div>'
+            html+='<div class=\'table-td\'>'+zkc.get(nodepath+'/'+dev+'/'+'externalip')[0].decode()+'</div>'
+            html+='<div class=\'table-td\'>'
+            
+            if curtime <= utime or utime is None:
+                html+='无效'
+            elif curtime < utime+60:
+                html+=str(int((curtime-utime))%60)+'秒前'
+            elif curtime < utime+3600:
+                html+=str(int((curtime-utime)/60))+'分钟'+str((curtime-utime)%60)+'秒前'
+            else:
+                h=int((curtime-utime)/3600)
+                html+=str(h)+'小时'+str(int((curtime-utime)/60)-h*60)+'分钟'+str((curtime-utime)%60)+'秒前'
+            html+='</div></div>'
 
     html+='</div></body></html>'
     return HTTPResponse(html, 200, {})
