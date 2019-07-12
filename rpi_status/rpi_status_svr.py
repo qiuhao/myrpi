@@ -49,6 +49,7 @@ def status():
             '<div class=\'table-td\'>型号</div>'+\
             '<div class=\'table-td\'>CPU</div>'+\
             '<div class=\'table-td\'>内存(MB)<br>Total/Avail/Free</div>'+\
+            '<div class=\'table-td\'>CPU温度</div>'+\
             '<div class=\'table-td\'>局域网IP</div>'+\
             '<div class=\'table-td\'>外网IP</div>'+\
             '<div class=\'table-td\'>上一次更新</div>'+\
@@ -56,20 +57,43 @@ def status():
 
     curtime=int(time.time())
     devices=zkc.get_children(nodepath)
+    devices.sort()
     print(str(devices))
     for dev in devices:
-        model=zkc.get(nodepath+'/'+dev+'/'+'model')[0].decode()
-        cpu=zkc.get(nodepath+'/'+dev+'/'+'cpu')[0].decode()
-        cpucore=zkc.get(nodepath+'/'+dev+'/'+'cpucore')[0].decode()
-        cpuarch=zkc.get(nodepath+'/'+dev+'/'+'cpuarch')[0].decode()
-        memtotal=int(int(zkc.get(nodepath+'/'+dev+'/'+'memtotal')[0].decode())/1024)
-        memavail=int(int(zkc.get(nodepath+'/'+dev+'/'+'memavailable')[0].decode())/1024)
-        memfree=int(int(zkc.get(nodepath+'/'+dev+'/'+'memfree')[0].decode())/1024)
         html+='<div class=\'table-tr\'>'
         html+='<div class=\'table-td\'>'+dev+'</div>'
-        html+='<div class=\'table-td\'>'+model+'</div>'
-        html+='<div class=\'table-td\'>'+cpu+' ('+cpucore+'-core, '+cpuarch+')</div>'
-        html+='<div class=\'table-td\'>'+str(memtotal)+'/'+str(memavail)+'/'+str(memfree)+'</div>'
+
+        try:
+            model=zkc.get(nodepath+'/'+dev+'/'+'model')
+            html+='<div class=\'table-td\'>'+model[0].decode()+'</div>'
+        except kazoo.exceptions.NoNodeError:
+            html+='<div class=\'table-td\'>'+''+'</div>'
+
+        try:
+            cpu=zkc.get(nodepath+'/'+dev+'/'+'cpu')
+            cpucore=zkc.get(nodepath+'/'+dev+'/'+'cpucore')
+            cpuarch=zkc.get(nodepath+'/'+dev+'/'+'cpuarch')
+            html+='<div class=\'table-td\'>'+cpu[0].decode()+' ('+cpucore[0].decode()+'-core, '+cpuarch[0].decode()+')</div>'
+        except kazoo.exceptions.NoNodeError:
+            html+='<div class=\'table-td\'>'+''+'</div>'
+
+        try:
+            memtotal=zkc.get(nodepath+'/'+dev+'/'+'memtotal')
+            memavail=zkc.get(nodepath+'/'+dev+'/'+'memavailable')
+            memfree=zkc.get(nodepath+'/'+dev+'/'+'memfree')
+            imt=int(int(memtotal[0].decode())/1024)
+            ima=int(int(memavail[0].decode())/1024)
+            imf=int(int(memfree[0].decode())/1024)
+            html+='<div class=\'table-td\'>'+str(imt)+'/'+str(ima)+'/'+str(imf)+'</div>'
+        except kazoo.exceptions.NoNodeError:
+            html+='<div class=\'table-td\'>'+''+'</div>'
+
+        try:
+            temperature=zkc.get(nodepath+'/'+dev+'/'+'temperature')
+            html+='<div class=\'table-td\'>'+temperature[0].decode()+'</div>'
+        except kazoo.exceptions.NoNodeError:
+            html+='<div class=\'table-td\'>'+''+'</div>'
+
         html+='<div class=\'table-td\'>'+zkc.get(nodepath+'/'+dev+'/'+'localip')[0].decode()+'</div>'
         html+='<div class=\'table-td\'>'+zkc.get(nodepath+'/'+dev+'/'+'externalip')[0].decode()+'</div>'
         html+='<div class=\'table-td\'>'
@@ -107,6 +131,7 @@ def status_report():
     zkc.ensure_path(folder+"/memavailable")
     zkc.ensure_path(folder+"/memfree")
     zkc.ensure_path(folder+"/model")
+    zkc.ensure_path(folder+"/temperature")
 
     timestamp=zkc.get(folder+"/updatetime")
     curtime=time.time()
@@ -123,6 +148,7 @@ def status_report():
     zkc.set(folder+"/memfree", _dict['memf'].encode('utf-8'))
     zkc.set(folder+"/memavailable", _dict['mema'].encode('utf-8'))
     zkc.set(folder+"/model", _dict['model'].encode('utf-8'))
+    zkc.set(folder+"/temperature", _dict['temperature'].encode('utf-8'))
 
     if realip is None:
         zkc.set(folder+"/externalip", request.get('REMOTE_ADDR').encode('utf-8'))
