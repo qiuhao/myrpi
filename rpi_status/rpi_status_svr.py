@@ -71,8 +71,8 @@ def status():
             '<div class=\'table-td\'>设备名</div>'+\
             '<div class=\'table-td\'>型号</div>'+\
             '<div class=\'table-td\'>CPU</div>'+\
-            '<div class=\'table-td\'>内存<br>总/可用</div>'+\
-            '<div class=\'table-td\'>CPU温度</div>'+\
+            '<div class=\'table-td\'>内存</div>'+\
+            '<div class=\'table-td\'>CPU温度<br>CPU使用率</div>'+\
             '<div class=\'table-td\'>局域网IP</div>'+\
             '<div class=\'table-td\'>外网IP</div>'+\
             '<div class=\'table-td\'>上一次更新</div>'+\
@@ -110,21 +110,29 @@ def status():
                 html+='<div class=\'table-td\'>'
                 imt=int(int(memtotal[0].decode())/1024)
                 imf=int(int(memfree[0].decode())/1024)
-                if imt > 2048:
-                    html+=str(int(imt*10/1024)/10)+'GB/'
-                else:
-                    html+=str(imt)+'MB/'
                 if imf > 2048:
                     html+=str(int(imf*10/1024)/10)+'GB'
                 else:
                     html+=str(imf)+'MB'
-                html+='</div>'
+                html+=' free/<br>'
+                if imt > 2048:
+                    html+=str(int(imt*10/1024)/10)+'GB'
+                else:
+                    html+=str(imt)+'MB'
+                html+=" total</div>"
             except kazoo.exceptions.NoNodeError:
                 html+='<div class=\'table-td\'>'+''+'</div>'
 
             try:
                 temperature=zkc.get(nodepath+'/'+dev+'/'+'temperature')
-                html+='<div class=\'table-td\'>'+temperature[0].decode()+'</div>'
+                html+='<div class="table-td">'+temperature[0].decode()
+                if zkc.exists(nodepath+'/'+dev+'/'+'cpuusage'):
+                    usage=zkc.get(nodepath+'/'+dev+'/'+'cpuusage')
+                    if len(usage[0].decode()) is not 0:
+                        if len(temperature[0].decode()) is not 0:
+                            html+='<br>'
+                        html+=usage[0].decode()+'%'
+                html+='</div>'
             except kazoo.exceptions.NoNodeError:
                 html+='<div class=\'table-td\'>'+''+'</div>'
 
@@ -166,6 +174,7 @@ def status_report():
     zkc.ensure_path(folder+"/cpu")
     zkc.ensure_path(folder+"/cpucore")
     zkc.ensure_path(folder+"/cpuarch")
+    zkc.ensure_path(folder+"/cpuusage")
     zkc.ensure_path(folder+"/memtotal")
     zkc.ensure_path(folder+"/memfree")
     zkc.ensure_path(folder+"/model")
@@ -185,12 +194,15 @@ def status_report():
     zkc.set(folder+"/updatetime", str(curtime).encode('utf-8'))
     zkc.set(folder+"/localip", vlip)
     zkc.set(folder+"/cpu", _dict['cpu'].encode('utf-8'))
-    zkc.set(folder+"/cpucore", _dict['core'].encode('utf-8'))
     zkc.set(folder+"/cpuarch", _dict['arch'].encode('utf-8'))
-    zkc.set(folder+"/memtotal", _dict['mem'].encode('utf-8'))
-    zkc.set(folder+"/memfree", _dict['memf'].encode('utf-8'))
     zkc.set(folder+"/model", _dict['model'].encode('utf-8'))
     zkc.set(folder+"/temperature", _dict['temperature'].encode('utf-8'))
+
+    print(_dict['usage'])
+    zkc.set(folder+"/cpuusage", str(_dict['usage']).encode('utf-8'))
+    zkc.set(folder+"/cpucore", str(_dict['core']).encode('utf-8'))
+    zkc.set(folder+"/memtotal", str(_dict['mem']).encode('utf-8'))
+    zkc.set(folder+"/memfree", str(_dict['memf']).encode('utf-8'))
 
     if realip is None:
         zkc.set(folder+"/externalip", request.get('REMOTE_ADDR').encode('utf-8'))
