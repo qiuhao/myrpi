@@ -72,7 +72,7 @@ def status():
             '<div class=\'table-td\'>型号</div>'+\
             '<div class=\'table-td\'>CPU</div>'+\
             '<div class=\'table-td\'>内存</div>'+\
-            '<div class=\'table-td\'>CPU温度<br>CPU使用率</div>'+\
+            '<div class=\'table-td\'>CPU使用率/<br>主频/温度</div>'+\
             '<div class=\'table-td\'>局域网IP</div>'+\
             '<div class=\'table-td\'>外网IP</div>'+\
             '<div class=\'table-td\'>上一次更新</div>'+\
@@ -125,13 +125,13 @@ def status():
 
             try:
                 temperature=zkc.get(nodepath+'/'+dev+'/'+'temperature')
-                html+='<div class="table-td">'+temperature[0].decode()
-                if zkc.exists(nodepath+'/'+dev+'/'+'cpuusage'):
-                    usage=zkc.get(nodepath+'/'+dev+'/'+'cpuusage')
-                    if len(usage[0].decode()) is not 0:
-                        if len(temperature[0].decode()) is not 0:
-                            html+='<br>'
-                        html+=usage[0].decode()+'%'
+                usage=zkc.get(nodepath+'/'+dev+'/'+'cpuusage')
+                freq=zkc.get(nodepath+'/'+dev+'/'+'cpufreq')
+                html+='<div class="table-td">'+usage[0].decode()+'%'
+                if len(freq[0].decode()) is not 0:
+                    html+='<br>'+freq[0].decode()+'MHz'
+                if len(temperature[0].decode()) is not 0:
+                    html+='<br>'+temperature[0].decode()
                 html+='</div>'
             except kazoo.exceptions.NoNodeError:
                 html+='<div class=\'table-td\'>'+''+'</div>'
@@ -179,6 +179,7 @@ def status_report():
     zkc.ensure_path(folder+"/memfree")
     zkc.ensure_path(folder+"/model")
     zkc.ensure_path(folder+"/temperature")
+    zkc.ensure_path(folder+"/cpufreq")
 
     timestamp=zkc.get(folder+"/updatetime")
     curtime=time.time()
@@ -203,6 +204,9 @@ def status_report():
     zkc.set(folder+"/cpucore", str(_dict['core']).encode('utf-8'))
     zkc.set(folder+"/memtotal", str(_dict['mem']).encode('utf-8'))
     zkc.set(folder+"/memfree", str(_dict['memf']).encode('utf-8'))
+
+    if 'freq' in _dict:
+        zkc.set(folder+"/cpufreq", str(_dict['freq']/1000000).encode('utf-8'))
 
     if realip is None:
         zkc.set(folder+"/externalip", request.get('REMOTE_ADDR').encode('utf-8'))
