@@ -76,6 +76,7 @@ def status():
             '<div class=\'table-td\'>局域网IP</div>'+\
             '<div class=\'table-td\'>外网IP</div>'+\
             '<div class=\'table-td\'>上一次更新</div>'+\
+            '<div class=\'table-td\'>脚本<br>版本</div>'+\
         '</div>'
 
     curtime=int(time.time())
@@ -100,7 +101,7 @@ def status():
                 if len(cpu[0].decode()) == 0:
                     html+='<div class=\'table-td\'>'+cpuarch[0].decode()+'</div>'
                 else:
-                    html+='<div class=\'table-td\'>'+cpu[0].decode()+' ('+cpucore[0].decode()+'-core, '+cpuarch[0].decode()+')</div>'
+                    html+='<div class=\'table-td\'>'+cpu[0].decode()+'<br>'+cpucore[0].decode()+'-core, '+cpuarch[0].decode()+'</div>'
             except kazoo.exceptions.NoNodeError:
                 html+='<div class=\'table-td\'>'+''+'</div>'
 
@@ -136,7 +137,39 @@ def status():
             except kazoo.exceptions.NoNodeError:
                 html+='<div class=\'table-td\'>'+''+'</div>'
 
-            html+='<div class=\'table-td\'>'+zkc.get(nodepath+'/'+dev+'/'+'localip')[0].decode()+'</div>'
+            html+='<div class=\'table-td\'>'
+            try:
+                lip=zkc.get(nodepath+'/'+dev+'/'+'localip')[0].decode().replace("\n", "<br>")
+                html+=lip
+                if len(lip) is not 0:
+                    html+='<br>'
+            except kazoo.exceptions.NoNodeError:
+                noop = True
+                
+            try:
+                lipv6=zkc.get(nodepath+'/'+dev+'/'+'localipv6')[0].decode().replace("\n", "<br>")
+                html+=lipv6
+                if len(lipv6) is not 0:
+                    html+='<br>'
+            except kazoo.exceptions.NoNodeError:
+                noop = True
+            
+            try:
+                lwip=zkc.get(nodepath+'/'+dev+'/'+'localwip')[0].decode().replace("\n", "<br>")
+                html+=lwip
+                if len(lwip) is not 0:
+                    html+='<br>'
+            except kazoo.exceptions.NoNodeError:
+                noop = True
+            
+            try:
+                lwipv6=zkc.get(nodepath+'/'+dev+'/'+'localwipv6')[0].decode().replace("\n", "<br>")
+                html+=lwipv6
+            except kazoo.exceptions.NoNodeError:
+                noop = True
+            
+            html+='</div>'
+            
             html+='<div class=\'table-td\'>'+zkc.get(nodepath+'/'+dev+'/'+'externalip')[0].decode()+'</div>'
             html+='<div class=\'table-td\'>'
             
@@ -153,7 +186,15 @@ def status():
                 h=int((curtime-utime)/3600)
                 d=int(h/24)
                 html+=str(d)+'天'+str(h-d*24)+'小时'+str(int((curtime-utime)/60)-h*60)+'分钟'+str((curtime-utime)%60)+'秒前'
-            html+='</div></div>'
+            html+='</div>'
+
+            try:
+                scriptver=zkc.get(nodepath+'/'+dev+'/'+'scriptver')[0].decode()
+                html+='<div class=\'table-td\'>'+scriptver+'</div>'
+            except kazoo.exceptions.NoNodeError:
+                html+='<div class=\'table-td\'></div>'
+
+            html+='</div>'
 
     html+='</div></body></html>'
     return HTTPResponse(html, 200, {})
@@ -170,6 +211,9 @@ def status_report():
     zkc.ensure_path(folder)
     zkc.ensure_path(folder+"/updatetime")
     zkc.ensure_path(folder+"/localip")
+    zkc.ensure_path(folder+"/localipv6")
+    zkc.ensure_path(folder+"/localwip")
+    zkc.ensure_path(folder+"/localwipv6")
     zkc.ensure_path(folder+"/externalip")
     zkc.ensure_path(folder+"/cpu")
     zkc.ensure_path(folder+"/cpucore")
@@ -180,20 +224,52 @@ def status_report():
     zkc.ensure_path(folder+"/model")
     zkc.ensure_path(folder+"/temperature")
     zkc.ensure_path(folder+"/cpufreq")
+    zkc.ensure_path(folder+"/scriptver")
 
     timestamp=zkc.get(folder+"/updatetime")
     curtime=time.time()
 
     localip=_dict['ip']
-    if localip.find('addr:') is -1:
-        vlip=localip.encode('utf-8')
+    if localip is None:
+        zkc.set(folder+"/localip", b'')
     else:
-        vlip=localip[5:].encode('utf-8')
+        if localip.find('addr:') is -1:
+            vlip=localip.encode('utf-8')
+        else:
+            vlip=localip[5:].encode('utf-8')
+        zkc.set(folder+"/localip", vlip)
 
-    realip=request.environ.get('HTTP_X_REAL_IP')
+    localipv6=_dict['ipv6']
+    if localipv6 is None:
+        zkc.set(folder+"/localipv6", b'')
+    else:
+        if localipv6.find('addr:') is -1:
+            vlip=localipv6.encode('utf-8')
+        else:
+            vlip=localipv6[5:].encode('utf-8')
+        zkc.set(folder+"/localipv6", vlip)
+
+    localwip=_dict['wip']
+    if localwip is None:
+        zkc.set(folder+"/localwip", b'')
+    else:
+        if localwip.find('addr:') is -1:
+            vlip=localwip.encode('utf-8')
+        else:
+            vlip=localwip[5:].encode('utf-8')
+        zkc.set(folder+"/localwip", vlip)
+
+    localwipv6=_dict['wipv6']
+    if localwipv6 is None:
+        zkc.set(folder+"/localwipv6", b'')
+    else:
+        if localwipv6.find('addr:') is -1:
+            vlip=localwipv6.encode('utf-8')
+        else:
+            vlip=localwipv6[5:].encode('utf-8')
+        zkc.set(folder+"/localwipv6", vlip)
 
     zkc.set(folder+"/updatetime", str(curtime).encode('utf-8'))
-    zkc.set(folder+"/localip", vlip)
     zkc.set(folder+"/cpu", _dict['cpu'].encode('utf-8'))
     zkc.set(folder+"/cpuarch", _dict['arch'].encode('utf-8'))
     zkc.set(folder+"/model", _dict['model'].encode('utf-8'))
@@ -207,6 +283,11 @@ def status_report():
 
     if 'freq' in _dict:
         zkc.set(folder+"/cpufreq", str(_dict['freq']/1000000).encode('utf-8'))
+
+    if 'scriptver' in _dict:
+        zkc.set(folder+"/scriptver", str(_dict['scriptver']).encode('utf-8'))
+
+    realip=request.environ.get('HTTP_X_REAL_IP')
 
     if realip is None:
         zkc.set(folder+"/externalip", request.get('REMOTE_ADDR').encode('utf-8'))
